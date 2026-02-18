@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Big Two Scorer</title>
     <style>
         :root {
@@ -10,25 +10,34 @@
             --accent: #3498db;
             --light: #ecf0f1;
             --win-color: #27ae60;
+            --danger: #e74c3c;
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        * {
+            box-sizing: border-box;
+        }
+
+        /* FIX: Lock the body to the screen to prevent scrolling the whole page */
+        html, body {
             margin: 0;
             padding: 0;
+            width: 100%;
+            height: 100%;
+            position: fixed; /* Crucial for iOS */
+            overflow: hidden;
             background-color: #f8f9fa;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden; /* Prevent body scroll */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
-        /* --- Page Management --- */
+        /* --- Page Layout --- */
         .page {
             display: none;
             flex-direction: column;
-            height: 100%;
             width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
 
         .page.active {
@@ -39,45 +48,46 @@
         #page-setup {
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            background-color: var(--primary);
         }
 
         .setup-container {
             background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            width: 90%;
+            padding: 2rem;
+            border-radius: 16px;
+            width: 85%;
             max-width: 400px;
             text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
         }
+
+        .setup-container h2 { margin-top: 0; color: var(--primary); }
 
         input[type="text"] {
             width: 100%;
-            padding: 12px;
+            padding: 15px;
             margin: 15px 0;
-            font-size: 18px;
+            font-size: 1.2rem;
             border: 2px solid #ddd;
-            border-radius: 8px;
-            box-sizing: border-box;
+            border-radius: 10px;
+            text-align: center;
         }
 
         .btn-primary {
             background-color: var(--accent);
             color: white;
             border: none;
-            padding: 12px 24px;
-            font-size: 18px;
-            border-radius: 8px;
-            cursor: pointer;
+            padding: 15px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 10px;
             width: 100%;
+            cursor: pointer;
+            /* iOS Touch Feedback */
+            touch-action: manipulation; 
         }
-
-        #player-list {
-            margin-top: 20px;
-            text-align: left;
-            color: #666;
-        }
+        
+        .btn-primary:active { opacity: 0.8; transform: scale(0.98); }
 
         /* --- Page 2: Scoreboard --- */
         #page-scoreboard {
@@ -85,6 +95,7 @@
         }
 
         .score-header {
+            flex-shrink: 0; /* Don't shrink */
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             background: var(--primary);
@@ -92,13 +103,14 @@
             padding: 15px 5px;
             font-weight: bold;
             text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            z-index: 10;
+            font-size: 0.9rem;
+            padding-top: max(15px, env(safe-area-inset-top)); /* Notch support */
         }
 
         .score-body {
-            flex: 1;
-            overflow-y: auto;
+            flex: 1; /* Take all available space */
+            overflow-y: auto; /* Scrollable */
+            -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
             background: #fff;
             position: relative;
         }
@@ -107,117 +119,116 @@
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             border-bottom: 1px solid #eee;
-            padding: 10px 5px;
+            padding: 12px 5px;
             text-align: center;
-            font-size: 16px;
+            font-size: 1rem;
         }
 
-        .round-row:nth-child(even) {
-            background-color: #f9f9f9;
-        }
+        .round-row:nth-child(even) { background-color: #f9f9f9; }
 
         .score-footer {
-            background: var(--light);
-            border-top: 2px solid #ccc;
-            padding-bottom: env(safe-area-inset-bottom); /* iOS safe area */
+            flex-shrink: 0;
+            background: #f8f9fa;
+            border-top: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            /* Safe area for iPhone home bar */
+            padding-bottom: env(safe-area-inset-bottom); 
         }
 
         .totals-row {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             padding: 15px 5px;
-            font-weight: bold;
+            font-weight: 800;
             text-align: center;
             color: var(--primary);
-            font-size: 18px;
+            font-size: 1.1rem;
         }
 
         .action-area {
-            padding: 10px 20px 20px;
+            padding: 10px 20px 20px 20px;
         }
 
         /* --- Page 3: Input --- */
         #page-input {
-            background: #f0f2f5;
+            background: #ecf0f1;
         }
 
-        .input-display-area {
-            flex: 1;
+        .input-top-section {
+            flex: 1; /* Pushes keypad down */
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             padding: 20px;
+            padding-top: max(20px, env(safe-area-inset-top));
         }
 
-        .current-player-label {
-            font-size: 24px;
-            color: #666;
-            margin-bottom: 10px;
+        .player-indicator {
+            font-size: 1rem;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
         }
 
         .current-player-name {
-            font-size: 32px;
-            font-weight: bold;
+            font-size: 2rem;
+            font-weight: 800;
             color: var(--primary);
-            margin-bottom: 20px;
+            margin-bottom: 25px;
+            text-align: center;
         }
 
         .score-display {
             background: white;
-            width: 80%;
-            max-width: 300px;
-            height: 60px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 36px;
+            width: 100%;
+            max-width: 320px;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 2.5rem;
             font-family: monospace;
+            font-weight: bold;
+            color: var(--primary);
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
             border: 2px solid var(--accent);
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
         }
 
+        /* Custom Keypad */
         .keypad {
+            flex-shrink: 0;
             background: white;
             padding: 10px;
-            padding-bottom: calc(20px + env(safe-area-inset-bottom));
+            /* Critical for iPhone: Add padding for the home bar */
+            padding-bottom: max(10px, env(safe-area-inset-bottom));
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            gap: 8px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+            z-index: 100;
         }
 
         .key {
             background: #e0e0e0;
             border: none;
             border-radius: 8px;
-            padding: 20px 0;
-            font-size: 24px;
-            font-weight: 500;
+            padding: 18px 0;
+            font-size: 1.5rem;
             color: #333;
-            touch-action: manipulation; /* Improves touch response */
+            font-weight: 500;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .key:active {
-            background: #d0d0d0;
-        }
+        .key:active { background: #ccc; transform: scale(0.98); }
 
-        .key-win {
-            background-color: var(--win-color);
-            color: white;
-            font-weight: bold;
-        }
-        
-        .key-enter {
-            background-color: var(--accent);
-            color: white;
-        }
+        .key-win { background-color: var(--win-color); color: white; font-weight: bold; font-size: 1.2rem; }
+        .key-enter { background-color: var(--accent); color: white; font-weight: bold; font-size: 1.2rem; }
+        .key-del { background-color: var(--danger); color: white; }
 
-        .key-back {
-            background-color: #e74c3c;
-            color: white;
-        }
     </style>
 </head>
 <body>
@@ -226,39 +237,35 @@
     <div id="page-setup" class="page active">
         <div class="setup-container">
             <h2>Big Two Scorer</h2>
-            <p id="setup-prompt">Enter Player 1 Name:</p>
-            <form id="name-form">
-                <input type="text" id="player-name-input" placeholder="Name" autocomplete="off" required>
+            <p id="setup-prompt">Enter Name for Player 1:</p>
+            <form id="name-form" onsubmit="handleNameSubmit(event)">
+                <input type="text" id="player-name-input" placeholder="Tap to type..." autocomplete="off">
                 <button type="submit" class="btn-primary">Next</button>
             </form>
-            <div id="player-list"></div>
+            <div id="player-status" style="margin-top:15px; color:#666; font-size:0.9rem;"></div>
         </div>
     </div>
 
     <!-- Page 2: Scoreboard -->
     <div id="page-scoreboard" class="page">
-        <div class="score-header" id="scoreboard-header">
-            <!-- Names injected here -->
-        </div>
+        <div class="score-header" id="scoreboard-header"></div>
         
         <div class="score-body" id="score-body">
-            <!-- Round rows injected here -->
+            <!-- Scores go here -->
         </div>
 
         <div class="score-footer">
-            <div class="totals-row" id="scoreboard-footer">
-                <!-- Totals injected here -->
-            </div>
+            <div class="totals-row" id="scoreboard-footer"></div>
             <div class="action-area">
-                <button class="btn-primary" onclick="startNewRound()">End Round / Add Scores</button>
+                <button class="btn-primary" onclick="startNewRound()">+ End Round</button>
             </div>
         </div>
     </div>
 
     <!-- Page 3: Input -->
     <div id="page-input" class="page">
-        <div class="input-display-area">
-            <div class="current-player-label">Enter score for:</div>
+        <div class="input-top-section">
+            <div class="player-indicator">Entering score for</div>
             <div class="current-player-name" id="input-player-name">Player 1</div>
             <div class="score-display" id="keypad-display">0</div>
         </div>
@@ -275,8 +282,8 @@
             <button class="key" onclick="pressKey('9')">9</button>
             <button class="key key-win" onclick="pressKey('WIN')">WIN</button>
             <button class="key" onclick="pressKey('0')">0</button>
-            <button class="key key-back" onclick="pressKey('DEL')">⌫</button>
-            <button class="key key-enter" style="grid-column: span 3;" onclick="submitScore()">Next Player</button>
+            <button class="key key-del" onclick="pressKey('DEL')">⌫</button>
+            <button class="key key-enter" style="grid-column: span 3;" onclick="submitScore()" id="btn-enter">Next Player</button>
         </div>
     </div>
 
@@ -284,127 +291,129 @@
         // --- State ---
         const state = {
             players: [],
-            scores: [], // Array of arrays: [[p1, p2, p3, p4], [p1, p2...]]
+            scores: [],
+            tempScores: [],
             currentInputIndex: 0,
-            currentRoundScores: [],
-            tempInput: ''
+            tempInput: '0'
         };
 
-        // --- DOM Elements ---
-        const pages = {
-            setup: document.getElementById('page-setup'),
-            scoreboard: document.getElementById('page-scoreboard'),
-            input: document.getElementById('page-input')
-        };
-
-        // --- Setup Logic ---
-        const nameForm = document.getElementById('name-form');
-        const nameInput = document.getElementById('player-name-input');
-        const setupPrompt = document.getElementById('setup-prompt');
-        const playerList = document.getElementById('player-list');
-
-        nameForm.addEventListener('submit', (e) => {
+        // --- Logic ---
+        function handleNameSubmit(e) {
             e.preventDefault();
-            const name = nameInput.value.trim();
-            if (!name) return;
+            const input = document.getElementById('player-name-input');
+            const name = input.value.trim();
+            
+            if(!name) return;
 
             state.players.push(name);
-            nameInput.value = '';
-            
-            // UI Update
-            playerList.innerHTML += `<div>${state.players.length}. ${name}</div>`;
+            input.value = '';
+            input.focus();
+
+            const nextNum = state.players.length + 1;
+            document.getElementById('player-status').innerText = `${state.players.length} / 4 Players Added`;
 
             if (state.players.length < 4) {
-                setupPrompt.textContent = `Enter Player ${state.players.length + 1} Name:`;
-                nameInput.focus();
+                document.getElementById('setup-prompt').innerText = `Enter Name for Player ${nextNum}:`;
             } else {
-                initializeScoreboard();
-                switchPage('scoreboard');
+                initGame();
             }
-        });
-
-        // --- Navigation ---
-        function switchPage(pageName) {
-            Object.values(pages).forEach(el => el.classList.remove('active'));
-            pages[pageName].classList.add('active');
         }
 
-        // --- Scoreboard Logic ---
-        function initializeScoreboard() {
-            // Setup Header
-            const header = document.getElementById('scoreboard-header');
-            header.innerHTML = state.players.map(p => `<div>${p}</div>`).join('');
-            renderScores();
-        }
-
-        function renderScores() {
-            const body = document.getElementById('score-body');
-            const footer = document.getElementById('scoreboard-footer');
+        function initGame() {
+            // Setup Headers
+            const headerRow = document.getElementById('scoreboard-header');
+            headerRow.innerHTML = state.players.map(p => `<div>${p}</div>`).join('');
             
-            // Render Rounds
-            body.innerHTML = state.scores.map((round, i) => `
-                <div class="round-row">
-                    ${round.map(score => `<div>${score}</div>`).join('')}
-                </div>
-            `).join('');
-
-            // Scroll to bottom
-            body.scrollTop = body.scrollHeight;
-
-            // Calculate Totals
-            const totals = [0, 0, 0, 0];
-            state.scores.forEach(round => {
-                round.forEach((score, i) => totals[i] += score);
-            });
-
-            // Render Totals
-            footer.innerHTML = totals.map(t => `<div>${t}</div>`).join('');
+            // Setup Footer Init
+            updateScoreboard();
+            switchPage('scoreboard');
         }
 
-        // --- Input Logic ---
+        function switchPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(`page-${pageId}`).classList.add('active');
+        }
+
         function startNewRound() {
+            state.tempScores = [];
             state.currentInputIndex = 0;
-            state.currentRoundScores = [];
-            state.tempInput = '';
-            updateInputUI();
+            state.tempInput = '0';
+            updateInputScreen();
             switchPage('input');
         }
 
-        function updateInputUI() {
-            document.getElementById('input-player-name').textContent = state.players[state.currentInputIndex];
-            document.getElementById('keypad-display').textContent = state.tempInput || '0';
+        function updateInputScreen() {
+            const player = state.players[state.currentInputIndex];
+            document.getElementById('input-player-name').innerText = player;
+            document.getElementById('keypad-display').innerText = state.tempInput;
             
-            const btn = document.querySelector('.key-enter');
-            btn.textContent = state.currentInputIndex === 3 ? "Finish Round" : "Next Player";
+            const btn = document.getElementById('btn-enter');
+            // Change button text if it's the last player
+            if (state.currentInputIndex === 3) {
+                btn.innerText = "Finish Round";
+                btn.style.backgroundColor = "#27ae60"; // Green for finish
+            } else {
+                btn.innerText = "Next Player";
+                btn.style.backgroundColor = ""; // Reset to default
+            }
         }
 
         function pressKey(key) {
             if (key === 'WIN') {
                 state.tempInput = '0';
             } else if (key === 'DEL') {
-                state.tempInput = state.tempInput.slice(0, -1);
+                if(state.tempInput.length > 1) {
+                    state.tempInput = state.tempInput.slice(0, -1);
+                } else {
+                    state.tempInput = '0';
+                }
             } else {
-                // Prevent multiple leading zeros
                 if (state.tempInput === '0') state.tempInput = key;
-                else state.tempInput += key;
+                else if (state.tempInput.length < 5) state.tempInput += key; // Limit length
             }
-            updateInputUI();
+            updateInputScreen();
         }
 
         function submitScore() {
-            const val = parseInt(state.tempInput || '0');
-            state.currentRoundScores.push(val);
-            state.tempInput = '';
+            const score = parseInt(state.tempInput);
+            state.tempScores.push(score);
 
             if (state.currentInputIndex < 3) {
                 state.currentInputIndex++;
-                updateInputUI();
+                state.tempInput = '0'; // Reset for next player
+                updateInputScreen();
             } else {
-                // Round Complete
-                state.scores.push([...state.currentRoundScores]);
-                renderScores();
+                // Round Done
+                state.scores.push(state.tempScores);
+                updateScoreboard();
                 switchPage('scoreboard');
             }
+        }
+
+        function updateScoreboard() {
+            const body = document.getElementById('score-body');
+            const footer = document.getElementById('scoreboard-footer');
+
+            // Render Rows
+            body.innerHTML = state.scores.map(round => `
+                <div class="round-row">
+                    ${round.map(s => `<div>${s}</div>`).join('')}
+                </div>
+            `).join('');
+
+            // Scroll to bottom
+            setTimeout(() => {
+                body.scrollTop = body.scrollHeight;
+            }, 10);
+
+            // Calc Totals
+            const totals = [0,0,0,0];
+            state.scores.forEach(round => {
+                round.forEach((s, i) => totals[i] += s);
+            });
+
+            // Render Footer
+            footer.innerHTML = totals.map(t => `<div>${t}</div>`).join('');
         }
     </script>
 </body>
