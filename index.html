@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Big Two Scorer</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --light: #ecf0f1;
+            --win-color: #27ae60;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Prevent body scroll */
+        }
+
+        /* --- Page Management --- */
+        .page {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+        }
+
+        .page.active {
+            display: flex;
+        }
+
+        /* --- Page 1: Setup --- */
+        #page-setup {
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .setup-container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            font-size: 18px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        .btn-primary {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        #player-list {
+            margin-top: 20px;
+            text-align: left;
+            color: #666;
+        }
+
+        /* --- Page 2: Scoreboard --- */
+        #page-scoreboard {
+            background: white;
+        }
+
+        .score-header {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            background: var(--primary);
+            color: white;
+            padding: 15px 5px;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        .score-body {
+            flex: 1;
+            overflow-y: auto;
+            background: #fff;
+            position: relative;
+        }
+
+        .round-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            border-bottom: 1px solid #eee;
+            padding: 10px 5px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        .round-row:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .score-footer {
+            background: var(--light);
+            border-top: 2px solid #ccc;
+            padding-bottom: env(safe-area-inset-bottom); /* iOS safe area */
+        }
+
+        .totals-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            padding: 15px 5px;
+            font-weight: bold;
+            text-align: center;
+            color: var(--primary);
+            font-size: 18px;
+        }
+
+        .action-area {
+            padding: 10px 20px 20px;
+        }
+
+        /* --- Page 3: Input --- */
+        #page-input {
+            background: #f0f2f5;
+        }
+
+        .input-display-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .current-player-label {
+            font-size: 24px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .current-player-name {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 20px;
+        }
+
+        .score-display {
+            background: white;
+            width: 80%;
+            max-width: 300px;
+            height: 60px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            font-family: monospace;
+            border: 2px solid var(--accent);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .keypad {
+            background: white;
+            padding: 10px;
+            padding-bottom: calc(20px + env(safe-area-inset-bottom));
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+
+        .key {
+            background: #e0e0e0;
+            border: none;
+            border-radius: 8px;
+            padding: 20px 0;
+            font-size: 24px;
+            font-weight: 500;
+            color: #333;
+            touch-action: manipulation; /* Improves touch response */
+        }
+
+        .key:active {
+            background: #d0d0d0;
+        }
+
+        .key-win {
+            background-color: var(--win-color);
+            color: white;
+            font-weight: bold;
+        }
+        
+        .key-enter {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        .key-back {
+            background-color: #e74c3c;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Page 1: Setup -->
+    <div id="page-setup" class="page active">
+        <div class="setup-container">
+            <h2>Big Two Scorer</h2>
+            <p id="setup-prompt">Enter Player 1 Name:</p>
+            <form id="name-form">
+                <input type="text" id="player-name-input" placeholder="Name" autocomplete="off" required>
+                <button type="submit" class="btn-primary">Next</button>
+            </form>
+            <div id="player-list"></div>
+        </div>
+    </div>
+
+    <!-- Page 2: Scoreboard -->
+    <div id="page-scoreboard" class="page">
+        <div class="score-header" id="scoreboard-header">
+            <!-- Names injected here -->
+        </div>
+        
+        <div class="score-body" id="score-body">
+            <!-- Round rows injected here -->
+        </div>
+
+        <div class="score-footer">
+            <div class="totals-row" id="scoreboard-footer">
+                <!-- Totals injected here -->
+            </div>
+            <div class="action-area">
+                <button class="btn-primary" onclick="startNewRound()">End Round / Add Scores</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page 3: Input -->
+    <div id="page-input" class="page">
+        <div class="input-display-area">
+            <div class="current-player-label">Enter score for:</div>
+            <div class="current-player-name" id="input-player-name">Player 1</div>
+            <div class="score-display" id="keypad-display">0</div>
+        </div>
+
+        <div class="keypad">
+            <button class="key" onclick="pressKey('1')">1</button>
+            <button class="key" onclick="pressKey('2')">2</button>
+            <button class="key" onclick="pressKey('3')">3</button>
+            <button class="key" onclick="pressKey('4')">4</button>
+            <button class="key" onclick="pressKey('5')">5</button>
+            <button class="key" onclick="pressKey('6')">6</button>
+            <button class="key" onclick="pressKey('7')">7</button>
+            <button class="key" onclick="pressKey('8')">8</button>
+            <button class="key" onclick="pressKey('9')">9</button>
+            <button class="key key-win" onclick="pressKey('WIN')">WIN</button>
+            <button class="key" onclick="pressKey('0')">0</button>
+            <button class="key key-back" onclick="pressKey('DEL')">⌫</button>
+            <button class="key key-enter" style="grid-column: span 3;" onclick="submitScore()">Next Player</button>
+        </div>
+    </div>
+
+    <script>
+        // --- State ---
+        const state = {
+            players: [],
+            scores: [], // Array of arrays: [[p1, p2, p3, p4], [p1, p2...]]
+            currentInputIndex: 0,
+            currentRoundScores: [],
+            tempInput: ''
+        };
+
+        // --- DOM Elements ---
+        const pages = {
+            setup: document.getElementById('page-setup'),
+            scoreboard: document.getElementById('page-scoreboard'),
+            input: document.getElementById('page-input')
+        };
+
+        // --- Setup Logic ---
+        const nameForm = document.getElementById('name-form');
+        const nameInput = document.getElementById('player-name-input');
+        const setupPrompt = document.getElementById('setup-prompt');
+        const playerList = document.getElementById('player-list');
+
+        nameForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = nameInput.value.trim();
+            if (!name) return;
+
+            state.players.push(name);
+            nameInput.value = '';
+            
+            // UI Update
+            playerList.innerHTML += `<div>${state.players.length}. ${name}</div>`;
+
+            if (state.players.length < 4) {
+                setupPrompt.textContent = `Enter Player ${state.players.length + 1} Name:`;
+                nameInput.focus();
+            } else {
+                initializeScoreboard();
+                switchPage('scoreboard');
+            }
+        });
+
+        // --- Navigation ---
+        function switchPage(pageName) {
+            Object.values(pages).forEach(el => el.classList.remove('active'));
+            pages[pageName].classList.add('active');
+        }
+
+        // --- Scoreboard Logic ---
+        function initializeScoreboard() {
+            // Setup Header
+            const header = document.getElementById('scoreboard-header');
+            header.innerHTML = state.players.map(p => `<div>${p}</div>`).join('');
+            renderScores();
+        }
+
+        function renderScores() {
+            const body = document.getElementById('score-body');
+            const footer = document.getElementById('scoreboard-footer');
+            
+            // Render Rounds
+            body.innerHTML = state.scores.map((round, i) => `
+                <div class="round-row">
+                    ${round.map(score => `<div>${score}</div>`).join('')}
+                </div>
+            `).join('');
+
+            // Scroll to bottom
+            body.scrollTop = body.scrollHeight;
+
+            // Calculate Totals
+            const totals = [0, 0, 0, 0];
+            state.scores.forEach(round => {
+                round.forEach((score, i) => totals[i] += score);
+            });
+
+            // Render Totals
+            footer.innerHTML = totals.map(t => `<div>${t}</div>`).join('');
+        }
+
+        // --- Input Logic ---
+        function startNewRound() {
+            state.currentInputIndex = 0;
+            state.currentRoundScores = [];
+            state.tempInput = '';
+            updateInputUI();
+            switchPage('input');
+        }
+
+        function updateInputUI() {
+            document.getElementById('input-player-name').textContent = state.players[state.currentInputIndex];
+            document.getElementById('keypad-display').textContent = state.tempInput || '0';
+            
+            const btn = document.querySelector('.key-enter');
+            btn.textContent = state.currentInputIndex === 3 ? "Finish Round" : "Next Player";
+        }
+
+        function pressKey(key) {
+            if (key === 'WIN') {
+                state.tempInput = '0';
+            } else if (key === 'DEL') {
+                state.tempInput = state.tempInput.slice(0, -1);
+            } else {
+                // Prevent multiple leading zeros
+                if (state.tempInput === '0') state.tempInput = key;
+                else state.tempInput += key;
+            }
+            updateInputUI();
+        }
+
+        function submitScore() {
+            const val = parseInt(state.tempInput || '0');
+            state.currentRoundScores.push(val);
+            state.tempInput = '';
+
+            if (state.currentInputIndex < 3) {
+                state.currentInputIndex++;
+                updateInputUI();
+            } else {
+                // Round Complete
+                state.scores.push([...state.currentRoundScores]);
+                renderScores();
+                switchPage('scoreboard');
+            }
+        }
+    </script>
+</body>
+</html>
