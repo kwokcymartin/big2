@@ -27,7 +27,6 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
-        /* --- Page Layout --- */
         .page {
             display: none;
             flex-direction: column;
@@ -260,7 +259,6 @@
         .key-win { background-color: var(--win-color); color: white; }
         .key-enter { background-color: var(--accent); color: white; }
         .key-del { background-color: var(--danger); color: white; }
-
     </style>
 </head>
 <body>
@@ -270,9 +268,7 @@
         <div class="menu-header">
             <h2>Select Save Slot</h2>
         </div>
-        <div id="slots-container">
-            <!-- Slots injected via JS -->
-        </div>
+        <div id="slots-container"></div>
     </div>
 
     <!-- Page 1: Setup -->
@@ -328,7 +324,6 @@
     </div>
 
     <script>
-        // --- State ---
         let currentSlotId = 1;
         let state = {
             players: [],
@@ -341,12 +336,10 @@
 
         const NUM_SLOTS = 3;
 
-        // --- Init ---
         window.onload = function() {
             renderMenu();
         };
 
-        // --- Persistence Logic ---
         function getSlotKey(id) { return `big2_save_slot_${id}`; }
 
         function saveGame() {
@@ -358,7 +351,6 @@
             const data = localStorage.getItem(getSlotKey(id));
             if(data) {
                 state = JSON.parse(data);
-                // Reset temp variables just in case
                 state.tempScores = [];
                 state.currentInputIndex = 0;
                 return true;
@@ -367,28 +359,24 @@
         }
 
         function deleteGame(id, event) {
-            event.stopPropagation(); // Prevent clicking the card behind the button
+            event.stopPropagation();
             if(confirm("Delete this saved game?")) {
                 localStorage.removeItem(getSlotKey(id));
                 renderMenu();
             }
         }
 
-        // --- Menu Logic ---
         function renderMenu() {
             const container = document.getElementById('slots-container');
             container.innerHTML = '';
-
             for(let i=1; i<=NUM_SLOTS; i++) {
                 const rawData = localStorage.getItem(getSlotKey(i));
                 let html = '';
-                
                 if(rawData) {
                     const data = JSON.parse(rawData);
                     const players = data.players.join(', ');
                     const rounds = data.scores.length;
                     const time = data.timestamp || '';
-                    
                     html = `
                         <div class="slot-card" onclick="selectSlot(${i}, true)">
                             <div class="slot-title">Slot ${i}</div>
@@ -420,7 +408,6 @@
                 initScoreboardUI();
                 switchPage('scoreboard');
             } else {
-                // New Game Setup
                 state = {
                     players: [],
                     scores: [],
@@ -442,25 +429,21 @@
             renderMenu();
         }
 
-        // --- Game Logic ---
         function handleNameSubmit(e) {
             e.preventDefault();
             const input = document.getElementById('player-name-input');
             const name = input.value.trim();
             if(!name) return;
-
             state.players.push(name);
             input.value = '';
             input.focus();
-
             const nextNum = state.players.length + 1;
             document.getElementById('player-status').innerText = `${state.players.length} / 4 Players Added`;
-
             if (state.players.length < 4) {
                 document.getElementById('setup-prompt').innerText = `Enter Name for Player ${nextNum}:`;
             } else {
                 initScoreboardUI();
-                saveGame(); // Initial Save
+                saveGame();
                 switchPage('scoreboard');
             }
         }
@@ -488,7 +471,6 @@
             const player = state.players[state.currentInputIndex];
             document.getElementById('input-player-name').innerText = player;
             document.getElementById('keypad-display').innerText = state.tempInput;
-            
             const btn = document.getElementById('btn-enter');
             if (state.currentInputIndex === 3) {
                 btn.innerText = "Finish Round";
@@ -515,39 +497,86 @@
         function submitScore() {
             const score = parseInt(state.tempInput);
             state.tempScores.push(score);
-
             if (state.currentInputIndex < 3) {
                 state.currentInputIndex++;
                 state.tempInput = '0'; 
                 updateInputScreen();
             } else {
                 state.scores.push(state.tempScores);
-                saveGame(); // SAVE after round
+                saveGame();
                 updateScoreboard();
                 switchPage('scoreboard');
             }
         }
 
-        function updateScoreboard() {
-            const body = document.getElementById('score-body');
-            const footer = document.getElementById('scoreboard-footer');
-
-            body.innerHTML = state.scores.map(round => `
-                <div class="round-row">
-                    ${round.map(s => `<div>${s}</div>`).join('')}
-                </div>
-            `).join('');
-
-            setTimeout(() => {
-                body.scrollTop = body.scrollHeight;
-            }, 10);
-
+        // *** EDIT SCORE: recompute totals after any change ***
+        function recomputeTotals() {
             const totals = [0,0,0,0];
             state.scores.forEach(round => {
                 round.forEach((s, i) => totals[i] += s);
             });
-
+            const footer = document.getElementById('scoreboard-footer');
             footer.innerHTML = totals.map(t => `<div>${t}</div>`).join('');
+        }
+
+        // *** EDIT SCORE: handler for editing a single cell ***
+        function editScore(roundIndex, playerIndex) {
+            const oldVal = state.scores[roundIndex][playerIndex];
+            const input = prompt(`Edit score for ${state.players[playerIndex]} (round ${roundIndex+1}):`, oldVal);
+            if (input === null) return;
+            const newVal = parseInt(input, 10);
+            if (Number.isNaN(newVal) || newVal < 0) {
+                alert("Please enter a non-negative number.");
+                return;
+            }
+            state.scores[roundIndex][playerIndex] = newVal;
+            saveGame();
+            updateScoreboard();
+        }
+
+        // *** LONG PRESS EDIT: attach long-press listeners to score cells ***
+        function attachLongPressHandlers() {
+            const cells = document.querySelectorAll('.score-cell');
+            cells.forEach(cell => {
+                let pressTimer = null;
+                const start = (e) => {
+                    e.preventDefault();
+                    pressTimer = setTimeout(() => {
+                        pressTimer = null;
+                        const r = parseInt(cell.getAttribute('data-round'),10);
+                        const p = parseInt(cell.getAttribute('data-player'),10);
+                        editScore(r, p);
+                    }, 600); // long-press threshold (ms)
+                };
+                const cancel = () => {
+                    if (pressTimer !== null) {
+                        clearTimeout(pressTimer);
+                        pressTimer = null;
+                    }
+                };
+                cell.addEventListener('touchstart', start, {passive:false});
+                cell.addEventListener('mousedown', start);
+                cell.addEventListener('touchend', cancel);
+                cell.addEventListener('touchmove', cancel);
+                cell.addEventListener('mouseup', cancel);
+                cell.addEventListener('mouseleave', cancel);
+            });
+        }
+
+        function updateScoreboard() {
+            const body = document.getElementById('score-body');
+            body.innerHTML = state.scores.map((round, roundIndex) => `
+                <div class="round-row">
+                    ${round.map((s, playerIndex) =>
+                        `<div class="score-cell" data-round="${roundIndex}" data-player="${playerIndex}">${s}</div>`
+                    ).join('')}
+                </div>
+            `).join('');
+            setTimeout(() => {
+                body.scrollTop = body.scrollHeight;
+            }, 10);
+            recomputeTotals();
+            attachLongPressHandlers();
         }
     </script>
 </body>
